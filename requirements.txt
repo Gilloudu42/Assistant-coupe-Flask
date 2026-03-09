@@ -1,0 +1,6 @@
+Flask
+python-frontmatter
+python-dotenv
+requests
+google-generativeai
+Pillow
