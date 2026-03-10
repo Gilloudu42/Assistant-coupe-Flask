@@ -208,8 +208,8 @@ Compare l'image à ces descriptions et déduis-en la cause racine.
 Tu dois répondre UNIQUEMENT par l'ID du défaut retenu. AUCUNE phrase, AUCUN autre format. Les IDE authorisés sont EXCLUSIVEMENT : {valid_slugs}.
 """
         
-        # Use gemini-flash-latest as it is the original working model
-        model = genai.GenerativeModel('gemini-flash-latest')
+        # Use gemini-1.5-flash as it is the original working model
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content([prompt, img])
         
         try:
@@ -274,7 +274,7 @@ def transcribe_audio():
         audio_bytes = base64.b64decode(audio_b64)
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         prompt = f"""
 Tu es un assistant technique expert en machines de coupe industrielle.
