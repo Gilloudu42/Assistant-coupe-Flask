@@ -9,7 +9,14 @@ import PIL.Image
 import io
 import base64
 
-load_dotenv()
+from dotenv import load_dotenv
+
+if os.path.exists(".env.vercel.production"):
+    load_dotenv(".env.vercel.production")
+if os.path.exists(".env.vercel.local"):
+    load_dotenv(".env.vercel.local")
+else:
+    load_dotenv()
 
 app = Flask(__name__)
 DATA_DIR = os.path.join(app.root_path, 'data', 'defauts')
@@ -180,33 +187,45 @@ def analyze_image():
         defects_info = []
         for d in defauts:
             title = d.get('titre', d.get('slug'))
-            content = d.get('content', '')[:1500] # Send almost the full content
+            content = str(d.get('content', ''))[:1500] # Send almost the full content
             defects_info.append(f"- ID: '{d['slug']}', Titre: '{title}', Description: {content}")
             
         defects_list_str = "\n\n".join(defects_info)
         
+        valid_slugs = ", ".join([f"'{d.get('slug', '')}'" for d in defauts])
         prompt = f"""
-Tu es un expert en découpe de verre industriel et en maintenance de machines de coupe. 
-On te présente la photographie d'un défaut sur un bord de verre ou sur la machine.
-Voici la "base de connaissances" des défauts connus (ID, Titre, Description) :
+Tu es un expert en découpe de verre industriel. Analyse la photographie ci-jointe et identifie le défaut technique parmi notre base de connaissances stricte.
 
+Voici les défauts possibles dans la base (avec leur ID, titre et description) :
 {defects_list_str}
 
-Analyse très attentivement la photo. En comparant ce que tu vois aux descriptions de la base de connaissances, identifie le défaut technique.
-- Si l'image montre de simples brisures ou petites poussières sur la table/moquette, c'est généralement lié aux 'Paillettes'.
-- CRITIQUE : Si la découpe du verre n'est pas lisse, mais présente des écailles latérales régulières (des "facettes"), il s'agit d'un problème avec l'outil de coupe. Dans CE CAS, tu DOIS choisir le défaut "Molettes cassées" (qui représente aussi les molettes usées, ébréchées, etc). Ne choisis pas 'Trop de force' pour ces écailles.
+Consignes d'analyse très essentielles :
+- Si le bord du verre montre de GROSSES cassures franches, des fissures profondes, ou un gros morceau de verre arraché de façon brutale et irrégulière, la coupe a cédé sous le poids/la pression. Choix : "Trop de force".
+- Si le bord présente un écaillage régulier, de multiples petites facettes successives ("dents de requin") le long de l'arête, avec un motif très répétitif, même sur plusieurs épaisseurs de verres empilés, c'est l'outil qui manque de qualité de coupe. Choix : "Defaut molette".
+- Si tu vois seulement de la limaille, des petits grains luisants ou de très petites brisures libres sur la table, c'est de la poussière de coupe. Choix : "Paillettes".
 
-Réponds UNIQUEMENT et STRICTEMENT par l'ID exact du défaut trouvé dans la liste fournie. Ne fais aucune phrase.
+Compare l'image à ces descriptions et déduis-en la cause racine.
+Tu dois répondre UNIQUEMENT par l'ID du défaut retenu. AUCUNE phrase, AUCUN autre format. Les IDE authorisés sont EXCLUSIVEMENT : {valid_slugs}.
 """
         
+        # Use gemini-flash-latest as it is the original working model
         model = genai.GenerativeModel('gemini-flash-latest')
         response = model.generate_content([prompt, img])
-        suggested_text = response.text.strip().lower()
         
+        try:
+            suggested_text = response.text.strip().lower()
+            raw_res = response.text
+        except ValueError:
+            # Caught if Gemini blocked the prompt due to safety ratings
+            return jsonify({"error": "Erreur interne Gemini (bloqué par sécurité)"}), 500
+            
         found_slug = None
         for d in defauts:
+            slug_val = str(d.get('slug', ''))
+            id_val = str(d.get('id', ''))
+            titre_val = str(d.get('titre', ''))
             # Check if slug, id, or titre is in the response
-            if d['slug'].lower() in suggested_text or d['id'].lower() in suggested_text or (d.get('titre') and d['titre'].lower() in suggested_text):
+            if slug_val.lower() in suggested_text or id_val.lower() in suggested_text or (titre_val and titre_val.lower() in suggested_text):
                 found_slug = d['slug']
                 break
                 
