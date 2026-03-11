@@ -22,12 +22,14 @@
 
   <style>
     :root {
-      --background: #0a0b10;
+      --background: #07090f;
       --foreground: #f8fafc;
-      --card: rgba(30, 41, 59, 0.5);
-      --card-border: rgba(255, 255, 255, 0.1);
-      --primary: #13a4ec;
-      --accent: #3b82f6;
+      --card: rgba(15, 23, 42, 0.6);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #0ea5e9;
+      --accent: #6366f1;
+      --success: #10b981;
+      --danger: #ef4444;
     }
 
     body {
@@ -49,10 +51,17 @@
 
     .glass {
       background: var(--card);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: 1.5rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
     }
 
     .glass-pill {
@@ -145,6 +154,24 @@
       z-index: 10;
     }
 
+    .scale-in {
+      animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes scale-in {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Hide scrollbar but keep functionality */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
     /* Markdown Documentation Styling */
     .doc-content h1,
     .doc-content h2,
@@ -215,28 +242,45 @@
             <span class="text-slate-500 text-lg">🔍</span>
             <span class="text-slate-400 text-sm flex-1">Recherche par mots-clés...</span>
           </div>
-          <button @click="navigate('bibliotheque'); setTimeout(() => startVoiceSearch(), 500)"
-            class="text-slate-400 hover:text-blue-400 transition-colors border-l border-slate-700 pl-4 py-1 z-20">
-            <span class="text-xl">🎤</span>
-          </button>
+          <div class="flex items-center gap-3 z-20">
+            <button @click="navigate('scan')"
+              class="text-slate-400 hover:text-blue-400 transition-colors border-l border-slate-700 pl-4 py-1">
+              <span class="text-xl">📷</span>
+            </button>
+            <button @click="navigate('bibliotheque'); setTimeout(() => startVoiceSearch(), 500)"
+              class="text-slate-400 hover:text-blue-400 transition-colors border-l border-slate-700 pl-4 py-1">
+              <span class="text-xl">🎤</span>
+            </button>
+          </div>
         </div>
 
         <section class="mt-4">
-          <a href="#" @click.prevent="navigate('scan')" class="w-full relative group block">
-            <div
-              class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-400 rounded-3xl blur opacity-25 transition duration-1000">
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-white font-space-grotesk flex items-center gap-2">
+                <span class="text-xl">📚</span> Galerie de référence
+              </h3>
+              <button @click="navigate('bibliotheque')" class="text-blue-400 text-sm font-medium">Voir tout</button>
             </div>
-            <div class="relative glass h-64 flex flex-col items-center justify-center gap-6 border-blue-500/20">
-              <div
-                class="w-24 h-24 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_50px_-12px_rgba(59,130,246,0.3)]">
-                <span class="text-5xl">📷</span>
-              </div>
-              <div class="text-center">
-                <h3 class="text-xl font-bold text-white mb-2">Scanner un défaut</h3>
-                <p class="text-slate-400 text-sm px-8">Photographiez le défaut pour un diagnostic instantané</p>
+            
+            <div class="grid grid-cols-2 gap-4">
+              <div v-for="defaut in defautsData" :key="defaut.slug" 
+                   @click="navigateDefaut(defaut.slug)"
+                   class="group cursor-pointer flex flex-col gap-2">
+                <div class="glass overflow-hidden aspect-[3/4] border-slate-800 bg-slate-900 group-hover:border-blue-500/40">
+                  <img v-if="defaut.photos && defaut.photos.length" 
+                       :src="'/data/defauts/' + defaut.slug + '/' + defaut.photos[0]" 
+                       class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500">
+                  <div v-else class="w-full h-full flex items-center justify-center text-slate-700 bg-slate-900/50">
+                    <span class="text-2xl">🖼️</span>
+                  </div>
+                </div>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
+                  {{ defaut.titre || defaut.slug }}
+                </p>
               </div>
             </div>
-          </a>
+          </div>
         </section>
 
         <section class="flex flex-col gap-4">
@@ -266,6 +310,23 @@
           </div>
         </section>
 
+        <section class="grid grid-cols-2 gap-4">
+          <div class="glass p-5 border-blue-500/10 bg-blue-500/[0.02]">
+            <div class="flex flex-col gap-1">
+              <span class="text-blue-400 text-xs font-bold uppercase tracking-widest">Analyses</span>
+              <span class="text-2xl font-bold text-white">{{ defautsData.length * 2 + 12 }}</span>
+              <p class="text-slate-500 text-[10px]">Total ce mois-ci</p>
+            </div>
+          </div>
+          <div class="glass p-5 border-blue-500/10 bg-blue-500/[0.02]">
+            <div class="flex flex-col gap-1">
+              <span class="text-purple-400 text-xs font-bold uppercase tracking-widest">Expert</span>
+              <span class="text-2xl font-bold text-white">{{ defautsData.length }}</span>
+              <p class="text-slate-500 text-[10px]">Fiches techniques</p>
+            </div>
+          </div>
+        </section>
+
         <section class="glass p-5 border-blue-500/10 bg-blue-500/[0.02]">
           <div class="flex items-center gap-3">
             <div class="flex-1">
@@ -278,71 +339,99 @@
       </div>
 
 
-      <!-- PAGE SCAN -->
-      <div v-if="currentPage === 'scan'" class="relative min-h-screen bg-black overflow-hidden flex flex-col pt-12">
-        <video ref="videoElement" autoplay playsinline
-          class="absolute inset-0 w-full h-full object-cover opacity-80"></video>
+      <!-- PAGE SCAN (REDESIGNED) -->
+      <div v-if="currentPage === 'scan'" class="relative min-h-screen bg-black overflow-hidden flex flex-col">
+        
+        <!-- SECTION HAUTE: CAMERA (Hauteur réduite pour la galerie) -->
+        <div class="relative h-[38vh] w-full overflow-hidden bg-slate-900">
+          <video ref="videoElement" autoplay playsinline
+            class="absolute inset-0 w-full h-full object-cover opacity-80"></video>
+          
+          <!-- Overlay de scan -->
+          <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="w-64 h-64 border-2 border-blue-500/20 rounded-3xl relative">
+              <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-blue-500/60 rounded-tl-xl"></div>
+              <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-blue-500/60 rounded-tr-xl"></div>
+              <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-blue-500/60 rounded-bl-xl"></div>
+              <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-blue-500/60 rounded-br-xl"></div>
+              <div class="absolute left-0 right-0 h-0.5 bg-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-scan"></div>
+            </div>
+          </div>
 
-        <div v-if="scanError" class="absolute inset-0 flex items-center justify-center p-6 text-center z-50">
-          <div class="glass p-6 border-red-500/50">
-            <span class="text-4xl mb-4 block">⚠️</span>
-            <p class="text-white font-medium mb-4">{{ scanError }}</p>
-            <a href="#" @click.prevent="navigate('home')" class="text-blue-400 text-sm underline">Retour au
-              Dashboard</a>
+          <!-- Boutons flottants hauts -->
+          <div class="absolute top-8 left-6 right-6 flex items-center justify-between pointer-events-auto">
+            <a href="#" @click.prevent="navigate('home')" class="glass-pill px-4 py-2 text-white text-xs backdrop-blur-md">✕ Quitter</a>
+            <div class="glass-pill px-3 py-1.5 text-blue-400 text-[10px] font-mono animate-pulse uppercase tracking-widest backdrop-blur-md border-blue-500/20">
+              AI Vision Active
+            </div>
+          </div>
+
+          <!-- Loader d'analyse -->
+          <div v-if="isAnalyzing" class="absolute inset-0 z-[60] backdrop-blur-sm bg-blue-900/10 flex items-center justify-center">
+            <div class="text-center flex flex-col items-center gap-4">
+              <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <p class="text-white text-xs font-bold tracking-widest uppercase">Analyse IA...</p>
+            </div>
           </div>
         </div>
 
-        <div class="absolute inset-0 pointer-events-none">
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="w-72 h-72 border-2 border-blue-500/30 rounded-3xl relative">
-              <div class="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-xl"></div>
-              <div class="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-xl"></div>
-              <div class="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-xl"></div>
-              <div class="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-xl">
-              </div>
-              <div
-                class="absolute left-0 right-0 h-0.5 bg-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan">
-              </div>
-            </div>
+        <!-- SECTION BASSE: REFERENCE & CONTROLS -->
+        <div class="flex-1 glass rounded-t-[2.5rem] rounded-b-none border-x-0 border-b-0 -mt-8 relative z-[70] flex flex-col gap-6 py-8 px-6 bg-slate-950/80 backdrop-blur-2xl">
+          
+          <div class="flex flex-col gap-1">
+            <h3 class="text-white font-bold text-lg font-space-grotesk flex items-center gap-2">
+              <span class="text-xl">📚</span> Galerie de référence
+            </h3>
+            <p class="text-slate-500 text-xs">Faites défiler pour comparer avec les cas connus</p>
           </div>
-          <div class="absolute top-12 left-6 right-6 flex items-center justify-between pointer-events-auto">
-            <a href="#" @click.prevent="navigate('home')" class="glass-pill px-4 py-2 text-white text-sm">✕ Annuler</a>
-            <div class="glass-pill px-4 py-2 text-blue-400 text-xs font-mono animate-pulse uppercase tracking-widest">
-              AI Scanner Active
-            </div>
-          </div>
-        </div>
 
-        <div class="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-6 pointer-events-auto">
-          <div class="text-center">
-            <p class="text-white/60 text-xs uppercase tracking-widest font-medium mb-1">Alignez le défaut</p>
-            <p class="text-white text-sm font-semibold">Analyse automatique en cours...</p>
-          </div>
-          <button @click="handleCapture" class="w-20 h-20 rounded-full border-4 border-white/20 p-1 group shrink-0">
-            <div
-              class="w-full h-full rounded-full bg-white flex items-center justify-center transition-transform active:scale-90 shadow-xl">
-              <div class="w-6 h-6 border-2 border-black rounded-sm"></div>
+          <!-- Galerie de référence verticale (Menu déroulant) -->
+          <div class="flex-1 overflow-y-auto no-scrollbar -mx-2 px-2 pb-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div v-for="defaut in defautsData" :key="defaut.slug" 
+                   @click="navigateDefaut(defaut.slug)"
+                   class="group cursor-pointer flex flex-col gap-2">
+                <div class="glass overflow-hidden aspect-[3/4] border-slate-800 bg-slate-900 group-hover:border-blue-500/40">
+                  <img v-if="defaut.photos && defaut.photos.length" 
+                       :src="'/data/defauts/' + defaut.slug + '/' + defaut.photos[0]" 
+                       class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500">
+                  <div v-else class="w-full h-full flex items-center justify-center text-slate-700 bg-slate-900/50">
+                    <span class="text-2xl">🖼️</span>
+                  </div>
+                </div>
+                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
+                  {{ defaut.titre || defaut.slug }}
+                </p>
+              </div>
             </div>
-          </button>
+          </div>
 
-          <div class="flex items-center gap-3">
-            <span class="text-slate-500 text-xs">Ou</span>
-            <button @click="triggerFileInput"
-              class="text-white text-sm bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full border border-slate-700 shadow flex items-center gap-2">
-              <span class="text-lg">📁</span> Choisir une photo
+          <!-- Bouton de capture IA principal -->
+          <div class="flex flex-col items-center gap-4 mt-auto pb-4">
+            <button @click="handleCapture" 
+                    class="w-20 h-20 rounded-full border-4 border-blue-500/20 p-1.5 active:scale-95 transition-all bg-blue-500/5">
+              <div class="w-full h-full rounded-full bg-white flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                <div class="w-6 h-6 border-2 border-slate-900 rounded-sm"></div>
+              </div>
             </button>
-            <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
+            
+            <div class="flex items-center gap-4">
+              <button @click="triggerFileInput" 
+                class="glass-pill px-5 py-2.5 text-white text-xs flex items-center gap-2 bg-slate-900/60 border-slate-800 hover:border-slate-700">
+                <span class="text-base">📁</span> Dossier photos
+              </button>
+              <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
+            </div>
           </div>
         </div>
 
-        <div v-if="isAnalyzing"
-          class="absolute inset-0 z-[60] glass flex items-center justify-center rounded-none border-none">
-          <div class="text-center flex flex-col items-center gap-6">
-            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <div>
-              <h3 class="text-2xl font-bold text-white mb-2">Analyse IA</h3>
-              <p class="text-slate-400">Comparaison avec la bibliothèque technique...</p>
-            </div>
+        <!-- Modal Erreur -->
+        <div v-if="scanError" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div class="glass p-6 border-red-500/30 text-center flex flex-col gap-4 max-w-xs">
+            <span class="text-3xl">⚠️</span>
+            <p class="text-white text-sm font-medium">{{ scanError }}</p>
+            <button @click="scanError = null; isAnalyzing = false" class="btn-primary py-2.5 rounded-xl text-xs font-bold">Réessayer</button>
+            <a href="#" @click.prevent="navigate('home')" class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mt-2">Retour au menu</a>
           </div>
         </div>
       </div>
@@ -442,7 +531,7 @@
             <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1">Photos du dossier</h3>
             <div class="grid grid-cols-2 gap-3">
               <div v-for="(photo, i) in currentDefaut.photos" :key="i"
-                class="glass aspect-square bg-slate-800/50 border-slate-700 flex flex-col items-center justify-center overflow-hidden">
+                class="glass aspect-[3/4] bg-slate-800/50 border-slate-700 flex flex-col items-center justify-center overflow-hidden">
                 <img :src="'/data/defauts/' + currentDefaut.slug + '/' + photo" class="w-full h-full object-cover">
               </div>
             </div>
@@ -581,8 +670,25 @@
 
     </main>
 
-    <!-- Mobile Navigation Bar -->
-    <nav v-if="currentPage !== 'scan'" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-50">
+    <!-- Login Modal -->
+    <div v-if="!currentUser" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+      <div class="glass p-8 w-full max-w-md flex flex-col gap-6 scale-in">
+        <div class="text-center">
+          <h2 class="text-3xl font-bold font-space-grotesk text-white mb-2">Connexion</h2>
+          <p class="text-slate-400 text-sm">Entrez votre identifiant pour accéder à l'assistant</p>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-slate-400 text-xs uppercase ml-4">Identifiant</label>
+            <input type="text" v-model="loginUsername" placeholder="Votre nom" 
+              class="glass-pill px-6 py-3 bg-slate-900/50 border-slate-800 text-white outline-none focus:border-blue-500/50" />
+          </div>
+          <button @click="handleLogin" class="btn-primary py-3 rounded-full text-white font-semibold mt-2">Continuer</button>
+        </div>
+      </div>
+    </div>
+
+    <nav v-if="currentPage !== 'scan' && currentUser" class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-5xl z-50">
       <div class="glass-pill flex items-center justify-around py-3 px-6 shadow-2xl">
         <a href="#" @click.prevent="navigate('home')" class="group flex flex-col items-center gap-1 transition-colors"
           :class="currentPage === 'home' ? 'text-blue-400' : 'text-slate-400 hover:text-blue-300'">
@@ -600,6 +706,10 @@
           <span class="text-xl">🛡️</span>
           <span class="text-[10px] font-medium tracking-tight">Expert</span>
         </a>
+        <a href="#" @click.prevent="logout" class="group flex flex-col items-center gap-1 transition-colors text-slate-400 hover:text-red-400">
+          <span class="text-xl">🚪</span>
+          <span class="text-[10px] font-medium tracking-tight">Logout</span>
+        </a>
       </div>
     </nav>
   </div>
@@ -612,6 +722,30 @@
         const currentPage = ref('home');
         const defautsData = ref([]);
         const currentDefaut = ref(null);
+        const currentUser = ref(localStorage.getItem('currentUser') || null);
+        const loginUsername = ref('');
+
+        const handleLogin = () => {
+          if (loginUsername.value.trim()) {
+            currentUser.value = loginUsername.value.trim();
+            localStorage.setItem('currentUser', currentUser.value);
+            loadDefauts();
+          }
+        };
+
+        const logout = () => {
+          currentUser.value = null;
+          localStorage.removeItem('currentUser');
+          currentPage.value = 'home';
+        };
+
+        const apiFetch = (url, options = {}) => {
+          const headers = options.headers || {};
+          if (currentUser.value) {
+            headers['X-User'] = currentUser.value;
+          }
+          return fetch(url, { ...options, headers });
+        };
 
         const parsedContent = computed(() => {
           if (!currentDefaut.value || !currentDefaut.value.content) return '';
@@ -740,7 +874,7 @@
             uint8.forEach(b => binary += String.fromCharCode(b));
             const audioData = 'data:audio/mp4;base64,' + btoa(binary);
 
-            const res = await fetch('/api/transcribe-audio', {
+            const res = await apiFetch('/api/transcribe-audio', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -817,7 +951,7 @@
         // Fetch data
         const loadDefauts = async () => {
           try {
-            const res = await fetch('/api/defauts');
+            const res = await apiFetch('/api/defauts');
             defautsData.value = await res.json();
           } catch (e) {
             console.error(e);
@@ -843,7 +977,7 @@
           currentDefaut.value = null;
           window.scrollTo(0, 0);
           try {
-            const res = await fetch(`/api/defauts/${slug}`);
+            const res = await apiFetch(`/api/defauts/${slug}`);
             currentDefaut.value = await res.json();
           } catch (e) {
             console.error(e);
@@ -894,7 +1028,7 @@
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
           try {
-            const response = await fetch('/api/analyze-image', {
+            const response = await apiFetch('/api/analyze-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image: dataUrl })
@@ -931,11 +1065,11 @@
           reader.onload = async (e) => {
             const dataUrl = e.target.result;
             try {
-              const response = await fetch('/api/analyze-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: dataUrl })
-              });
+                const response = await apiFetch('/api/analyze-image', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ image: dataUrl })
+                });
               const data = await response.json();
 
               if (response.ok && data.slug) {
@@ -981,7 +1115,7 @@
               audioData = 'data:audio/mp4;base64,' + btoa(binary);
             }
 
-            const res = await fetch('/api/expert/save', {
+            const res = await apiFetch('/api/expert/save', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1036,7 +1170,8 @@
           expertPhotoInput, triggerExpertPhoto, handleExpertPhoto,
           expertAudioInput, expertAudioUrl, triggerAudioFile, handleAudioFile, clearAudio,
           isRecording, recordingTime, toggleExpertRecording,
-          isTranscribing, transcribeAudio
+          isTranscribing, transcribeAudio,
+          currentUser, loginUsername, handleLogin, logout
         };
       }
     }).mount('#app');

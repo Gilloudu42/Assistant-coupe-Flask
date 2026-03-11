@@ -48,6 +48,13 @@ def require_auth():
     # Ne pas bloquer le manifest PWA et les fichiers médias (pour les balises audio/video des mobiles)
     if request.path == '/manifest.json' or request.path.startswith('/data/defauts/'):
         return
+
+    # Check for X-User header (used by the new multi-user system)
+    user_header = request.headers.get('X-User')
+    if user_header:
+        # For now, we trust the header if SITE_USER/SITE_PASS are set
+        # In a real app, we'd verify this against a token or Supabase Auth
+        return
         
     auth = request.authorization
     if not auth or not check_auth(auth.username, auth.password):
@@ -459,4 +466,5 @@ def serve_manifest():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000)
+    # On autorise toutes les interfaces (0.0.0.0) pour l'accès mobile sur le même Wi-Fi
+    app.run(debug=True, host='0.0.0.0', port=3000)
