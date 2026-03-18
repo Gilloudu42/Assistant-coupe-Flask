@@ -12,6 +12,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player@latest/dist/mux-player.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -172,6 +173,22 @@
       scrollbar-width: none;
     }
 
+    /* Scrollbar styling for galleries */
+    .scrollbar-thin::-webkit-scrollbar {
+      height: 6px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 3px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
     /* Markdown Documentation Styling */
     .doc-content h1,
     .doc-content h2,
@@ -263,19 +280,20 @@
               <button @click="navigate('bibliotheque')" class="text-blue-400 text-sm font-medium">Voir tout</button>
             </div>
             
-            <div class="grid grid-cols-2 gap-4">
-              <div v-for="defaut in defautsData" :key="defaut.slug" 
-                   @click="navigateDefaut(defaut.slug)"
-                   class="group cursor-pointer flex flex-col gap-2">
-                <div class="glass overflow-hidden aspect-[3/4] border-slate-800 bg-slate-900 group-hover:border-blue-500/40">
+             <!-- Carrousel horizontal -->
+             <div class="flex gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50 snap-x snap-mandatory -mx-2 px-2 pb-2">
+               <div v-for="defaut in defautsData" :key="defaut.slug" 
+                    @click="navigateDefaut(defaut.slug)"
+                    class="group cursor-pointer flex-shrink-0 w-[85vw] max-w-[400px] snap-center flex flex-col gap-2">
+                <div class="glass overflow-hidden aspect-[3/5] border-slate-800 bg-slate-900 group-hover:border-blue-500/40 rounded-xl">
                   <img v-if="defaut.photos && defaut.photos.length" 
-                       :src="'/data/defauts/' + defaut.slug + '/' + defaut.photos[0]" 
+                       :src="'/data/defauts/' + encodeURIComponent(defaut.slug) + '/' + encodeURIComponent(defaut.photos[0])" 
                        class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500">
                   <div v-else class="w-full h-full flex items-center justify-center text-slate-700 bg-slate-900/50">
-                    <span class="text-2xl">🖼️</span>
+                    <span class="text-4xl">🖼️</span>
                   </div>
                 </div>
-                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
+                <p class="text-slate-400 text-sm font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
                   {{ defaut.titre || defaut.slug }}
                 </p>
               </div>
@@ -387,19 +405,20 @@
 
           <!-- Galerie de référence verticale (Menu déroulant) -->
           <div class="flex-1 overflow-y-auto no-scrollbar -mx-2 px-2 pb-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div v-for="defaut in defautsData" :key="defaut.slug" 
-                   @click="navigateDefaut(defaut.slug)"
-                   class="group cursor-pointer flex flex-col gap-2">
-                <div class="glass overflow-hidden aspect-[3/4] border-slate-800 bg-slate-900 group-hover:border-blue-500/40">
+             <!-- Carrousel horizontal -->
+             <div class="flex gap-4 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800/50 snap-x snap-mandatory -mx-2 px-2 pb-2">
+               <div v-for="defaut in defautsData" :key="defaut.slug" 
+                    @click="navigateDefaut(defaut.slug)"
+                    class="group cursor-pointer flex-shrink-0 w-[85vw] max-w-[400px] snap-center flex flex-col gap-2">
+                <div class="glass overflow-hidden aspect-[3/5] border-slate-800 bg-slate-900 group-hover:border-blue-500/40 rounded-xl">
                   <img v-if="defaut.photos && defaut.photos.length" 
-                       :src="'/data/defauts/' + defaut.slug + '/' + defaut.photos[0]" 
+                       :src="'/data/defauts/' + encodeURIComponent(defaut.slug) + '/' + encodeURIComponent(defaut.photos[0])" 
                        class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500">
                   <div v-else class="w-full h-full flex items-center justify-center text-slate-700 bg-slate-900/50">
-                    <span class="text-2xl">🖼️</span>
+                    <span class="text-4xl">🖼️</span>
                   </div>
                 </div>
-                <p class="text-slate-400 text-[10px] font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
+                <p class="text-slate-400 text-sm font-bold uppercase tracking-wider truncate group-hover:text-blue-400 transition-colors text-center px-1">
                   {{ defaut.titre || defaut.slug }}
                 </p>
               </div>
@@ -504,6 +523,19 @@
           </div>
         </header>
 
+        <!-- Vidéo Mux -->
+        <section v-if="currentDefaut.video" class="flex flex-col gap-4">
+          <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest ml-1">🎥 Vidéo</h3>
+          <div class="glass overflow-hidden rounded-xl border-slate-700">
+            <mux-player
+              :playback-id="currentDefaut.video"
+              :metadata-video-title="currentDefaut.titre || currentDefaut.slug"
+              accent-color="#3b82f6"
+              style="width: 100%; aspect-ratio: 16/9;"
+            ></mux-player>
+          </div>
+        </section>
+
         <section v-if="currentDefaut.audio"
           class="glass p-6 bg-gradient-to-br from-blue-600/20 to-transparent border-blue-500/20">
           <div class="flex flex-col gap-3">
@@ -511,7 +543,7 @@
               <span class="text-xl">🎙️</span> Transcription Audio
             </h4>
             <audio controls class="w-full relative z-20 h-10 outline-none rounded-full overflow-hidden bg-slate-900/50">
-              <source :src="'/data/defauts/' + currentDefaut.slug + '/' + currentDefaut.audio" type="audio/mp4">
+              <source :src="'/data/defauts/' + encodeURIComponent(currentDefaut.slug) + '/' + encodeURIComponent(currentDefaut.audio)" type="audio/mp4">
               Votre navigateur ne supporte pas la balise audio.
             </audio>
             <p class="text-blue-300/60 text-[10px] uppercase font-bold tracking-widest truncate pl-1">
@@ -532,7 +564,7 @@
             <div class="grid grid-cols-2 gap-3">
               <div v-for="(photo, i) in currentDefaut.photos" :key="i"
                 class="glass aspect-[3/4] bg-slate-800/50 border-slate-700 flex flex-col items-center justify-center overflow-hidden">
-                <img :src="'/data/defauts/' + currentDefaut.slug + '/' + photo" class="w-full h-full object-cover">
+                <img :src="'/data/defauts/' + encodeURIComponent(currentDefaut.slug) + '/' + encodeURIComponent(photo)" class="w-full h-full object-cover">
               </div>
             </div>
           </div>
@@ -572,13 +604,20 @@
           <div class="flex flex-col gap-6">
             <div class="flex flex-col gap-2">
               <label class="text-slate-400 text-xs uppercase ml-4">Sélectionner ou Créer</label>
-              <select v-model="expertForm.selectedSlug" @change="loadExpertDefautContent"
-                class="glass p-4 bg-slate-900 border-slate-800 text-white outline-none focus:border-blue-500/30 appearance-none">
-                <option value="">-- Créer un nouveau défaut --</option>
-                <option v-for="d in defautsData" :key="d.slug" :value="d.slug">
-                  Éditer : {{ d.titre || d.slug }}
-                </option>
-              </select>
+              <div class="flex gap-2">
+                <select v-model="expertForm.selectedSlug" @change="loadExpertDefautContent"
+                  class="glass p-4 bg-slate-900 border-slate-800 text-white outline-none focus:border-blue-500/30 appearance-none flex-1">
+                  <option value="">-- Créer un nouveau défaut --</option>
+                  <option v-for="d in defautsData" :key="d.slug" :value="d.slug">
+                    Éditer : {{ d.titre || d.slug }}
+                  </option>
+                </select>
+                <button v-if="expertForm.selectedSlug" type="button" @click="confirmDeleteDefaut"
+                  class="glass p-4 border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 transition-colors text-red-400"
+                  title="Supprimer cette fiche">
+                  🗑️
+                </button>
+              </div>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -643,6 +682,13 @@
                 class="glass p-4 bg-blue-900/20 border-blue-500/20 text-white outline-none focus:border-blue-500/40 font-mono text-sm"></textarea>
               <p class="text-slate-600 text-xs ml-2">Ce texte sera utilisé automatiquement par l'IA pour identifier ce
                 défaut sur une photo.</p>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label class="text-slate-400 text-xs uppercase ml-4">🎥 ID Vidéo Mux (optionnel)</label>
+              <input type="text" v-model="expertForm.video" placeholder="Ex: mnaf2fvebr3jta5far3dhikqa"
+                class="glass p-4 bg-slate-900/40 border-slate-800 text-white outline-none focus:border-blue-500/30 font-mono text-sm" />
+              <p class="text-slate-600 text-xs ml-2">Collez l'ID de la vidéo Mux (playback ID)</p>
             </div>
 
             <div class="flex flex-col gap-2">
@@ -819,7 +865,7 @@
         // Expert specific
         const isExpertAuthenticated = ref(false);
         const expertPassword = ref('');
-        const expertForm = ref({ selectedSlug: '', newName: '', symptoms: '', content: '', photoPreview: null, audioBlob: null });
+        const expertForm = ref({ selectedSlug: '', newName: '', symptoms: '', content: '', photoPreview: null, audioBlob: null, video: '' });
         const isSaving = ref(false);
         const saveStatus = ref('idle');
         const expertPhotoInput = ref(null);
@@ -937,6 +983,7 @@
             expertForm.value.content = '';
             expertForm.value.newName = '';
             expertForm.value.symptoms = '';
+            expertForm.value.video = '';
             return;
           }
           const selected = defautsData.value.find(d => d.slug === expertForm.value.selectedSlug);
@@ -945,6 +992,7 @@
             expertForm.value.symptoms = extractSymptoms(rawContent);
             expertForm.value.content = rawContent;
             expertForm.value.newName = selected.titre || selected.slug;
+            expertForm.value.video = selected.video || '';
           }
         };
 
@@ -1096,6 +1144,31 @@
           }
         };
 
+        const confirmDeleteDefaut = async () => {
+          if (!expertForm.value.selectedSlug) return;
+          const defautName = expertForm.value.newName || expertForm.value.selectedSlug;
+          if (!confirm(`⚠️ Êtes-vous sûr de vouloir supprimer la fiche "${defautName}" ?\n\nCette action est irréversible.`)) {
+            return;
+          }
+          try {
+            const res = await apiFetch('/api/expert/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ slug: expertForm.value.selectedSlug })
+            });
+            if (res.ok) {
+              alert('✅ Fiche supprimée avec succès');
+              expertForm.value = { selectedSlug: '', newName: '', symptoms: '', content: '', photoPreview: null, audioBlob: null };
+              loadDefauts(); // reload library
+            } else {
+              const data = await res.json();
+              alert('❌ Erreur lors de la suppression : ' + (data.error || 'Erreur inconnue'));
+            }
+          } catch (e) {
+            alert('❌ Erreur lors de la suppression');
+          }
+        };
+
         const submitExpertForm = async () => {
           if (!expertForm.value.newName || !expertForm.value.content) {
             alert("Veuillez remplir le nom et la fiche technique");
@@ -1124,12 +1197,13 @@
                 symptoms: expertForm.value.symptoms,
                 content: expertForm.value.content,
                 photo_data: expertForm.value.photoPreview || null,
-                audio_data: audioData
+                audio_data: audioData,
+                video: expertForm.value.video || null
               })
             });
             if (res.ok) {
               saveStatus.value = 'success';
-              expertForm.value = { selectedSlug: '', newName: '', symptoms: '', content: '', photoPreview: null, audioBlob: null };
+              expertForm.value = { selectedSlug: '', newName: '', symptoms: '', content: '', photoPreview: null, audioBlob: null, video: '' };
               loadDefauts(); // reload library
               setTimeout(() => saveStatus.value = 'idle', 3000);
             } else {
@@ -1164,7 +1238,7 @@
         return {
           currentPage, navigate, navigateDefaut, defautsData, currentDefaut, parsedContent,
           videoElement, scanError, isAnalyzing, handleCapture, fileInput, triggerFileInput, handleFileUpload,
-          isExpertAuthenticated, expertPassword, handleExpertLogin, expertForm, isSaving, saveStatus, submitExpertForm,
+          isExpertAuthenticated, expertPassword, handleExpertLogin, expertForm, isSaving, saveStatus, submitExpertForm, confirmDeleteDefaut,
           searchQuery, filteredDefauts, isListening, startVoiceSearch,
           isCreatingNew, loadExpertDefautContent,
           expertPhotoInput, triggerExpertPhoto, handleExpertPhoto,

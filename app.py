@@ -15,6 +15,8 @@ if os.path.exists(".env.vercel.production"):
     load_dotenv(".env.vercel.production")
 if os.path.exists(".env.vercel.local"):
     load_dotenv(".env.vercel.local")
+if os.path.exists(".env.local"):
+    load_dotenv(".env.local")
 else:
     load_dotenv()
 
@@ -24,6 +26,8 @@ DATA_DIR = os.path.join(app.root_path, 'data', 'defauts')
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "").strip()
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+MUX_TOKEN_ID = os.environ.get("MUX_TOKEN_ID", "").strip()
+MUX_TOKEN_SECRET = os.environ.get("MUX_TOKEN_SECRET", "").strip()
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -41,13 +45,27 @@ def authenticate():
 
 @app.before_request
 def require_auth():
+    # Allow login/logout pages
+    if request.path in ['/login', '/logout']:
+        return
+        
     # Si les variables ne sont pas définies en ligne, on laisse public
     if not os.environ.get("SITE_USER", "").strip() or not os.environ.get("SITE_PASS", "").strip():
         return
         
-    # Ne pas bloquer le manifest PWA et les fichiers médias (pour les balises audio/video des mobiles)
-    if request.path == '/manifest.json' or request.path.startswith('/data/defauts/'):
+    # Ne pas bloquer le manifest PWA, les fichiers médias et l'API des défauts
+    if request.path == '/manifest.json' or request.path.startswith('/data/defauts/') or request.path == '/api/defauts' or request.path == '/api/expert/delete':
         return
+
+    # Check for auth cookie
+    auth_cookie = request.cookies.get('auth_token')
+    if auth_cookie:
+        try:
+            username, password = auth_cookie.split(':', 1)
+            if check_auth(username, password):
+                return
+        except:
+            pass
 
     # Check for X-User header (used by the new multi-user system)
     user_header = request.headers.get('X-User')
@@ -58,6 +76,9 @@ def require_auth():
         
     auth = request.authorization
     if not auth or not check_auth(auth.username, auth.password):
+        # Redirect to login page for HTML requests
+        if request.accept_mimetypes.best_match(['text/html', 'application/json']) == 'text/html':
+            return redirect('/login')
         return authenticate()
 
 def get_supabase_headers():
@@ -96,6 +117,15 @@ def get_defauts():
                             elif filename.endswith('.m4a'):
                                 audio = filename
                                 
+                    # Fallback to local files if no photos in Supabase Storage
+                    if not photos and os.path.exists(DATA_DIR):
+                        folder_path = os.path.join(DATA_DIR, folder)
+                        if os.path.isdir(folder_path):
+                            files = os.listdir(folder_path)
+                            photos = [f for f in files if re.search(r'\.(jpg|jpeg|png|gif)$', f, re.IGNORECASE)]
+                            if not audio:
+                                audio = next((f for f in files if f.endswith('.m4a')), None)
+                    
                     defaut_data = {
                         "id": row.get("id"),
                         "slug": row.get("slug"),
@@ -103,7 +133,8 @@ def get_defauts():
                         "titre": row.get("titre"),
                         "date_transcription": row.get("date_transcription"),
                         "audio": audio,
-                        "photos": photos
+                        "photos": photos,
+                        "video": row.get("video")  # Mux playback ID
                     }
                     results.append(defaut_data)
         except Exception as e:
@@ -139,6 +170,99 @@ def get_defauts():
                 
     return results
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        data = request.get_json() or request.form
+        username = data.get('username', '')
+        password = data.get('password', '')
+        if check_auth(username, password):
+            resp = jsonify({"success": True})
+            resp.set_cookie('auth_token', f"{username}:{password}", max_age=3600*24*7)  # 7 days
+            return resp
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    # Return simple login HTML
+    return '''<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - Assistant Coupe Verre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-xl max-w-md w-full border border-slate-700">
+        <h1 class="text-2xl font-bold text-white mb-2">Assistant Coupe Verre</h1>
+        <p class="text-slate-400 mb-6">Veuillez vous connecter pour accéder à l'application</p>
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Identifiant</label>
+                <input type="text" id="username" required 
+                    class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Mot de passe</label>
+                <div class="relative">
+                    <input type="password" id="password" required 
+                        class="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10">
+                    <button type="button" id="togglePassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-lg">
+                        👁️
+                    </button>
+                </div>
+            </div>
+            <button type="submit" 
+                class="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-medium rounded-lg hover:opacity-90 transition-opacity">
+                Se connecter
+            </button>
+        </form>
+        <p id="error" class="text-red-400 text-sm mt-4 hidden"></p>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('error');
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    errorEl.textContent = 'Identifiants incorrects';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorEl.textContent = 'Erreur de connexion';
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                this.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+    </script>
+</body>
+</html>'''
+
+@app.route('/logout')
+def logout():
+    resp = jsonify({"success": True})
+    resp.set_cookie('auth_token', '', expires=0)
+    return resp
+
 @app.route('/')
 def index():
     return send_from_directory(os.path.join(app.root_path, 'templates'), 'index.html')
@@ -163,13 +287,19 @@ def api_defaut_detail(slug):
 def serve_media(slug, filename):
     slug = urllib.parse.unquote(slug)
     filename = urllib.parse.unquote(filename)
+    
+    # Always serve from local files for now (faster and more reliable)
+    folder_path = os.path.join(DATA_DIR, slug)
+    if os.path.exists(os.path.join(folder_path, filename)):
+        return send_from_directory(folder_path, filename)
+    
+    # Fallback to Supabase Storage if file not found locally
     if SUPABASE_URL:
         encoded_slug = urllib.parse.quote(slug)
         encoded_filename = urllib.parse.quote(filename)
         return redirect(f"{SUPABASE_URL}/storage/v1/object/public/medias/{encoded_slug}/{encoded_filename}")
         
-    folder_path = os.path.join(DATA_DIR, slug)
-    return send_from_directory(folder_path, filename)
+    return jsonify({"error": "File not found"}), 404
 
 @app.route('/api/analyze-image', methods=['POST'])
 def analyze_image():
@@ -343,6 +473,7 @@ def save_expert_data():
     symptoms = data.get('symptoms', '').strip()
     photo_data = data.get('photo_data')   # base64 string
     audio_data = data.get('audio_data')   # base64 string
+    video = data.get('video')             # Mux playback ID
     
     if not titre or not content:
         return jsonify({"error": "Missing title or content"}), 400
@@ -425,6 +556,8 @@ def save_expert_data():
             }
             if uploaded_audio_name:
                 row["audio"] = uploaded_audio_name
+            if video:
+                row["video"] = video
             # Upsert using resolution=merge-duplicates keeps existing columns intact
             response = requests.post(
                 f"{SUPABASE_URL}/rest/v1/defauts", 
@@ -450,7 +583,43 @@ def save_expert_data():
         print(f"Could not write file locally: {e}")
         
     return jsonify({"success": True})
-        
+         
+    return jsonify({"success": True})
+
+@app.route('/api/expert/delete', methods=['POST'])
+def delete_expert_data():
+    data = request.json
+    slug = data.get('slug')
+    
+    if not slug:
+        return jsonify({"error": "Missing slug"}), 400
+    
+    defaut_id = slug.lower().replace(" ", "-")
+    
+    # Delete from Supabase DB
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            response = requests.delete(
+                f"{SUPABASE_URL}/rest/v1/defauts?id=eq.{defaut_id}", 
+                headers=get_supabase_headers()
+            )
+            if response.status_code not in (200, 204):
+                print(f"Error deleting from Supabase: {response.text}")
+                return jsonify({"error": f"Failed to delete from Supabase: {response.text}"}), 500
+        except Exception as e:
+            print(f"Error deleting from Supabase: {e}")
+            return jsonify({"error": f"Failed to delete from Supabase: {e}"}), 500
+    
+    # Also delete local folder if exists
+    try:
+        folder_path = os.path.join(DATA_DIR, slug)
+        if os.path.exists(folder_path):
+            import shutil
+            shutil.rmtree(folder_path)
+            print(f"Deleted local folder: {folder_path}", flush=True)
+    except Exception as e:
+        print(f"Could not delete local folder: {e}", flush=True)
+    
     return jsonify({"success": True})
 
 # Support pour PWA manifest et icônes

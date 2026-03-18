@@ -1,12 +1,12 @@
 ---
-titre: Trop de force
-date_transcription: 2026-03-01 21:45
-duree: 00:00:35
-langue: fr
-modele: faster-whisper small
-fichier_source: Trop de force.m4a
-taille_source: 887 Ko
-outil: faster-whisper
+titre: "Trop de force"
+date_transcription: "Aujourd'hui"
+---
+
+## Symptômes
+
+*(à remplir)*
+
 ---
 
 # Transcription — Trop de force
